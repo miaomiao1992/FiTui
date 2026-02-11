@@ -268,13 +268,33 @@ fn draw_stats_view(
     per_tag: &[(String, f64)],
     theme: &Theme,
 ) {
+    // Split stats page into content + footer
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints([
+            Constraint::Min(1),      // Main stats content
+            Constraint::Length(1),   // Footer hint
+        ])
+        .split(f.size());
+
+    // Main stats content
     let content = build_stats_content(earned, spent, balance, per_tag, theme);
 
     let stats_widget = Paragraph::new(content)
         .block(create_bordered_block("📈 Statistics", theme))
         .alignment(Alignment::Left);
 
-    f.render_widget(stats_widget, f.size());
+    f.render_widget(stats_widget, layout[0]);
+
+    // Footer hint (fixed bottom)
+    let footer = Paragraph::new(Line::styled(
+        "[q] Back   |   Stats Mode",
+        Style::default().fg(theme.muted),
+    ))
+    .alignment(Alignment::Center);
+
+    f.render_widget(footer, layout[1]);
 }
 
 fn build_stats_content(
@@ -310,14 +330,6 @@ fn build_stats_content(
     lines.push(Line::raw(""));
 
     lines.extend(create_tag_breakdown_section(per_tag, theme));
-
-    // Footer
-    lines.push(Line::raw(""));
-    lines.push(Line::raw("────────────────────────────────────────"));
-    lines.push(Line::styled(
-        "[Esc] Back   |   Press ↑↓ in Transactions   |   Stats Mode",
-        Style::default().fg(theme.muted),
-    ));
 
     lines
 }
