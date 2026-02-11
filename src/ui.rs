@@ -330,7 +330,7 @@ fn draw_transaction_form(f: &mut Frame, app: &App, theme: &Theme) {
     let form_content = build_form_content(app, theme);
 
     let popup = Paragraph::new(form_content)
-        .block(theme.block("Transaction Form"))
+        .block(theme.popup("Transaction Form"))
         .alignment(Alignment::Left);
 
     f.render_widget(Clear, area);
@@ -341,75 +341,88 @@ fn build_form_content(app: &App, theme: &Theme) -> Vec<Line<'static>> {
     let form = &app.form;
 
     vec![
-        Line::styled(
-            "Add Transaction",
-            Style::default()
-                .fg(theme.accent)
-                .add_modifier(Modifier::BOLD),
-        ),
+        Line::styled("Add Transaction", theme.title()),
         Line::raw(""),
+
         create_form_field("Source", &form.source, form.active, Field::Source, theme),
         create_form_field("Amount", &form.amount, form.active, Field::Amount, theme),
+
         Line::raw(""),
+
         create_type_selector(&form.kind, theme),
         create_tag_selector(&form.tag, theme),
+
         Line::raw(""),
+
         create_form_field("Date", &form.date, form.active, Field::Date, theme),
+
         Line::raw(""),
-        Line::raw("────────────────────────────────────"),
+        Line::styled("────────────────────────────────────", theme.muted_text()),
+
         Line::styled(
             "[Tab] Next Field   [←→] Change Type/Tag   [Enter] Save   [Esc] Cancel",
-            Style::default().fg(theme.muted),
+            theme.muted_text(),
         ),
     ]
 }
 
+
 fn create_form_field(
-    label: &str,
+   label: &str,
     value: &str,
     active_field: Field,
     field: Field,
     theme: &Theme,
 ) -> Line<'static> {
-    let style = if active_field == field {
-        Style::default()
-            .fg(theme.accent)
-            .add_modifier(Modifier::BOLD)
+    let is_active = active_field == field;
+
+    // Label style: highlighted when active
+    let label_style = if is_active {
+        theme.title()
     } else {
-        Style::default().fg(Color::White)
+        theme.muted_text()
+    };
+
+    // Value style: cursor block when active
+    let value_style = if is_active {
+        theme.cursor_style()
+    } else {
+        Style::default().fg(theme.foreground)
     };
 
     Line::from(vec![
-        Span::styled(format!("{:<7}: ", label), Style::default().fg(theme.muted)),
-        Span::styled(value.to_string(), style),
+        Span::styled(format!("{:<7}: ", label), label_style),
+        Span::styled(value.to_string(), value_style),
     ])
 }
 
+
 fn create_type_selector(kind: &TransactionType, theme: &Theme) -> Line<'static> {
     let kind_style = match kind {
-        TransactionType::Credit => Style::default().fg(theme.credit),
-        TransactionType::Debit => Style::default().fg(theme.debit),
+        TransactionType::Credit => theme.success(),
+        TransactionType::Debit => theme.danger(),
     };
 
     Line::from(vec![
-        Span::styled("Type   : ", Style::default().fg(theme.muted)),
-        Span::styled(format!("<{:?}>", kind), kind_style.add_modifier(Modifier::BOLD)),
-        Span::styled("   ← →", Style::default().fg(theme.muted)),
+        Span::styled("Type   : ", theme.muted_text()),
+        Span::styled(format!("<{:?}>", kind), kind_style),
+        Span::styled("   ← →", theme.muted_text()),
     ])
 }
 
 fn create_tag_selector(tag: &crate::models::Tag, theme: &Theme) -> Line<'static> {
     Line::from(vec![
-        Span::styled("Tag    : ", Style::default().fg(theme.muted)),
+        Span::styled("Tag    : ", theme.muted_text()),
         Span::styled(
             format!("<{:?}>", tag),
             Style::default()
                 .fg(theme.accent)
                 .add_modifier(Modifier::ITALIC),
         ),
-        Span::styled("   ← →", Style::default().fg(theme.muted)),
+        Span::styled("   ← →", theme.muted_text()),
     ])
 }
+
 
 /* ============================================================================
  * UTILITIES
