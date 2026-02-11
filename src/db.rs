@@ -57,17 +57,20 @@ pub fn add_transaction(
     conn.execute(
         "INSERT INTO transactions (source, amount, kind, tag, date)
          VALUES (?1, ?2, ?3, ?4, ?5)",
-        (
-            source,
-            amount,
-            kind.as_str(),
-            tag.as_str(),
-            date,
-        ),
+        (source, amount, kind.as_str(), tag.as_str(), date),
     )?;
 
     Ok(())
 }
+
+pub fn delete_transaction(conn: &Connection, id: i32) -> Result<()> {
+    conn.execute("DELETE FROM transactions WHERE id = ?1", [id])?;
+    Ok(())
+}
+
+/* -------------------------
+   📊 Stats Queries
+--------------------------*/
 
 pub fn total_earned(conn: &Connection) -> Result<f64> {
     conn.query_row(
@@ -88,20 +91,23 @@ pub fn total_spent(conn: &Connection) -> Result<f64> {
         |row| row.get(0),
     )
 }
-pub fn delete_transaction(conn: &Connection, id: i32) -> rusqlite::Result<()> {
-    conn.execute("DELETE FROM transactions WHERE id = ?", [id])?;
-    Ok(())
-}
 
+/// Returns spending grouped by tag:
+/// Example:
+/// Food → 1200
+/// Travel → 500
 pub fn spent_per_tag(conn: &Connection) -> Result<Vec<(String, f64)>> {
     let mut stmt = conn.prepare(
         "SELECT tag, COALESCE(SUM(amount), 0)
          FROM transactions
          WHERE kind = 'debit'
-         GROUP BY tag",
+         GROUP BY tag
+         ORDER BY SUM(amount) DESC",
     )?;
 
-    let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
+    })?;
 
     let mut result = Vec::new();
     for r in rows {

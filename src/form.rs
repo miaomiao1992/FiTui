@@ -28,6 +28,7 @@ pub struct TransactionForm {
     pub kind: TransactionType,
     pub tag: Tag,
     pub date: String,
+
     pub active: Field,
 }
 
@@ -47,24 +48,15 @@ impl TransactionForm {
         *self = Self::new();
     }
 
+    // ✅ Only text fields accept typing
     pub fn push_char(&mut self, c: char) {
         match self.active {
             Field::Source => self.source.push(c),
             Field::Amount => self.amount.push(c),
             Field::Date => self.date.push(c),
 
-            Field::Kind => {
-                if c == 'c' {
-                    self.kind = TransactionType::Credit;
-                }
-                if c == 'd' {
-                    self.kind = TransactionType::Debit;
-                }
-            }
-
-            Field::Tag => {
-                self.tag = Tag::from_str(&c.to_string());
-            }
+            // Kind + Tag no longer accept raw typing
+            _ => {}
         }
     }
 
@@ -81,5 +73,25 @@ impl TransactionForm {
             }
             _ => {}
         }
+    }
+
+    // ✅ Toggle Credit/Debit
+    pub fn toggle_kind(&mut self) {
+        self.kind = match self.kind {
+            TransactionType::Credit => TransactionType::Debit,
+            TransactionType::Debit => TransactionType::Credit,
+        };
+    }
+
+    // ✅ Cycle Tags
+    pub fn next_tag(&mut self) {
+        self.tag = match self.tag {
+            Tag::Food => Tag::Travel,
+            Tag::Travel => Tag::Shopping,
+            Tag::Shopping => Tag::Bills,
+            Tag::Bills => Tag::Salary,
+            Tag::Salary => Tag::Other,
+            Tag::Other => Tag::Food,
+        };
     }
 }
