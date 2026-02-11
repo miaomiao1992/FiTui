@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum TransactionType {
     Credit,
     Debit,
@@ -20,7 +20,7 @@ impl TransactionType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Tag {
     Food,
     Travel,
