@@ -1,57 +1,17 @@
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
+    widgets::{Clear, List, ListItem, ListState, Paragraph},
 };
 
 use crate::{
     app::{App, Mode},
     form::Field,
     models::{Transaction, TransactionType},
+    theme::Theme,
 };
 
 /* ============================================================================
- * THEME CONFIGURATION
- * ========================================================================== */
-
-#[derive(Clone, Copy)]
-struct Theme {
-    accent: Color,
-    credit: Color,
-    debit: Color,
-    muted: Color,
-    background: Color,
-    foreground: Color,
-}
-
-impl Theme {
-    fn default() -> Self {
-        Self {
-            accent: Color::Cyan,
-            credit: Color::LightGreen,
-            debit: Color::LightRed,
-            muted: Color::Gray,
-            background: Color::Blue,
-            foreground: Color::White,
-        }
-    }
-
-    fn transaction_color(&self, tx_type: TransactionType) -> Color {
-        match tx_type {
-            TransactionType::Credit => self.credit,
-            TransactionType::Debit => self.debit,
-        }
-    }
-
-    fn highlight_style(&self) -> Style {
-        Style::default()
-            .bg(self.background)
-            .fg(self.foreground)
-            .add_modifier(Modifier::BOLD)
-    }
-}
-
-/* ============================================================================
- * MAIN DRAWING ENTRY POINT
+ * MAIN DRAW ENTRY
  * ========================================================================== */
 
 pub fn draw_ui(
@@ -67,16 +27,18 @@ pub fn draw_ui(
 
     match app.mode {
         Mode::Stats => draw_stats_view(f, earned, spent, balance, per_tag, &theme),
+
         Mode::Adding => {
             draw_main_view(f, transactions, earned, spent, balance, app, &theme);
             draw_transaction_form(f, app, &theme);
         }
+
         _ => draw_main_view(f, transactions, earned, spent, balance, app, &theme),
     }
 }
 
 /* ============================================================================
- * MAIN VIEW (Header + Transactions List)
+ * MAIN VIEW (Header + List)
  * ========================================================================== */
 
 fn draw_main_view(
@@ -99,7 +61,7 @@ fn draw_main_view(
 }
 
 /* ============================================================================
- * HEADER SECTION
+ * HEADER
  * ========================================================================== */
 
 fn draw_header(
@@ -128,7 +90,7 @@ fn draw_header(
     ];
 
     let header = Paragraph::new(content)
-        .block(create_bordered_block("Overview", theme))
+        .block(theme.block("Overview"))
         .alignment(Alignment::Center);
 
     f.render_widget(header, area);
@@ -145,27 +107,24 @@ fn draw_transactions_list(
     app: &App,
     theme: &Theme,
 ) {
-    // Split into list + footer
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(1),       // Transactions list
-            Constraint::Length(1),    // Footer hint line
+            Constraint::Min(1),     // List
+            Constraint::Length(1),  // Footer hint
         ])
         .split(area);
 
-    // Build list items WITHOUT footer
     let items = build_transaction_items(transactions, theme);
     let mut state = create_list_state(app.selected);
 
     let list = List::new(items)
-        .block(create_bordered_block("💳 Transactions", theme))
+        .block(theme.block("Transactions"))
         .highlight_style(theme.highlight_style())
         .highlight_symbol("  ❯ ");
 
     f.render_stateful_widget(list, layout[0], &mut state);
 
-    // Footer hint (fixed)
     let footer = Paragraph::new(Line::styled(
         "[↑↓] Navigate   [a] Add   [d] Delete   [s] Stats   [q] Quit",
         Style::default().fg(theme.muted),
@@ -175,6 +134,9 @@ fn draw_transactions_list(
     f.render_widget(footer, layout[1]);
 }
 
+/* ============================================================================
+ * LIST BUILDERS
+ * ========================================================================== */
 
 fn build_transaction_items(transactions: &[Transaction], theme: &Theme) -> Vec<ListItem<'static>> {
     let mut items = Vec::new();
@@ -188,7 +150,6 @@ fn build_transaction_items(transactions: &[Transaction], theme: &Theme) -> Vec<L
 
     items
 }
-
 
 fn create_table_header(theme: &Theme) -> ListItem<'static> {
     ListItem::new(Line::from(vec![
@@ -213,25 +174,17 @@ fn create_transaction_row(tx: &Transaction, theme: &Theme) -> ListItem<'static> 
     let tag_label = format!("<{}>", tx.tag.as_str());
 
     let line = Line::from(vec![
-        // Date
         Span::styled(format!("{:<10}", tx.date), Style::default().fg(theme.muted)),
         Span::raw("  "),
-        // Source
-        Span::styled(
-            format!("{:<14}", tx.source),
-            Style::default().fg(Color::White),
-        ),
+        Span::styled(format!("{:<14}", tx.source), Style::default().fg(Color::White)),
         Span::raw("  "),
-        // Amount
         Span::styled(
             format!("₹{:>8.2}", tx.amount),
             Style::default().fg(color).add_modifier(Modifier::BOLD),
         ),
         Span::raw("   "),
-        // Kind
         Span::styled(format!("{:<8}", kind_label), Style::default().fg(color)),
         Span::raw("  "),
-        // Tag
         Span::styled(
             tag_label,
             Style::default()
@@ -243,13 +196,6 @@ fn create_transaction_row(tx: &Transaction, theme: &Theme) -> ListItem<'static> 
     ListItem::new(line)
 }
 
-fn create_controls_footer(theme: &Theme) -> ListItem<'static> {
-    ListItem::new(Line::styled(
-        "[↑↓] Navigate   [a] Add   [d] Delete   [s] Stats   [q] Quit",
-        Style::default().fg(theme.muted),
-    ))
-}
-
 fn create_list_state(selected: usize) -> ListState {
     let mut state = ListState::default();
     state.select(Some(selected + 2));
@@ -257,7 +203,7 @@ fn create_list_state(selected: usize) -> ListState {
 }
 
 /* ============================================================================
- * STATISTICS VIEW
+ * STATS VIEW
  * ========================================================================== */
 
 fn draw_stats_view(
@@ -268,26 +214,23 @@ fn draw_stats_view(
     per_tag: &[(String, f64)],
     theme: &Theme,
 ) {
-    // Split stats page into content + footer
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Min(1),      // Main stats content
-            Constraint::Length(1),   // Footer hint
+            Constraint::Min(1),
+            Constraint::Length(1),
         ])
         .split(f.size());
 
-    // Main stats content
     let content = build_stats_content(earned, spent, balance, per_tag, theme);
 
     let stats_widget = Paragraph::new(content)
-        .block(create_bordered_block("📈 Statistics", theme))
+        .block(theme.block("Statistics"))
         .alignment(Alignment::Left);
 
     f.render_widget(stats_widget, layout[0]);
 
-    // Footer hint (fixed bottom)
     let footer = Paragraph::new(Line::styled(
         "[q] Back   |   Stats Mode",
         Style::default().fg(theme.muted),
@@ -306,19 +249,9 @@ fn build_stats_content(
 ) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
 
-    // Title section
-    lines.push(Line::styled(
-        "📊 Finance Stats Dashboard",
-        Style::default()
-            .fg(theme.accent)
-            .add_modifier(Modifier::BOLD),
-    ));
     lines.push(Line::raw(""));
-
-    // Overview section
     lines.extend(create_overview_section(earned, spent, balance));
 
-    // Tag breakdown section
     lines.push(Line::raw("────────────────────────────────────────"));
     lines.push(Line::raw(""));
     lines.push(Line::styled(
@@ -337,9 +270,9 @@ fn build_stats_content(
 fn create_overview_section(earned: f64, spent: f64, balance: f64) -> Vec<Line<'static>> {
     vec![
         Line::styled("Overview", Style::default().add_modifier(Modifier::BOLD)),
-        Line::raw(format!("  💰 Earned   : ₹{:.2}", earned)),
-        Line::raw(format!("  💸 Spent    : ₹{:.2}", spent)),
-        Line::raw(format!("  📌 Balance  : ₹{:.2}", balance)),
+        Line::raw(format!("  Earned   : ₹{:.2}", earned)),
+        Line::raw(format!("  Spent    : ₹{:.2}", spent)),
+        Line::raw(format!("  Balance  : ₹{:.2}", balance)),
         Line::raw(""),
     ]
 }
@@ -397,7 +330,7 @@ fn draw_transaction_form(f: &mut Frame, app: &App, theme: &Theme) {
     let form_content = build_form_content(app, theme);
 
     let popup = Paragraph::new(form_content)
-        .block(create_bordered_block("Transaction Form", theme))
+        .block(theme.block("Transaction Form"))
         .alignment(Alignment::Left);
 
     f.render_widget(Clear, area);
@@ -408,29 +341,22 @@ fn build_form_content(app: &App, theme: &Theme) -> Vec<Line<'static>> {
     let form = &app.form;
 
     vec![
-        // Title
         Line::styled(
-            "➕ Add Transaction",
+            "Add Transaction",
             Style::default()
                 .fg(theme.accent)
                 .add_modifier(Modifier::BOLD),
         ),
         Line::raw(""),
-        // Source field
         create_form_field("Source", &form.source, form.active, Field::Source, theme),
-        // Amount field
         create_form_field("Amount", &form.amount, form.active, Field::Amount, theme),
         Line::raw(""),
-        // Type selector
         create_type_selector(&form.kind, theme),
-        // Tag selector
         create_tag_selector(&form.tag, theme),
         Line::raw(""),
-        // Date field
         create_form_field("Date", &form.date, form.active, Field::Date, theme),
         Line::raw(""),
         Line::raw("────────────────────────────────────"),
-        // Controls
         Line::styled(
             "[Tab] Next Field   [←→] Change Type/Tag   [Enter] Save   [Esc] Cancel",
             Style::default().fg(theme.muted),
@@ -467,10 +393,7 @@ fn create_type_selector(kind: &TransactionType, theme: &Theme) -> Line<'static> 
 
     Line::from(vec![
         Span::styled("Type   : ", Style::default().fg(theme.muted)),
-        Span::styled(
-            format!("<{:?}>", kind),
-            kind_style.add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(format!("<{:?}>", kind), kind_style.add_modifier(Modifier::BOLD)),
         Span::styled("   ← →", Style::default().fg(theme.muted)),
     ])
 }
@@ -489,16 +412,8 @@ fn create_tag_selector(tag: &crate::models::Tag, theme: &Theme) -> Line<'static>
 }
 
 /* ============================================================================
- * UTILITY FUNCTIONS
+ * UTILITIES
  * ========================================================================== */
-
-fn create_bordered_block<'a>(title: &'a str, theme: &Theme) -> Block<'a> {
-    Block::default()
-        .title(title)
-        .borders(Borders::ALL)
-        .border_set(ratatui::symbols::border::ROUNDED)
-        .border_style(Style::default().fg(theme.accent))
-}
 
 fn centered_rect(percent_x: u16, percent_y: u16, rect: Rect) -> Rect {
     let vertical_layout = Layout::default()

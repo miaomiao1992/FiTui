@@ -3,6 +3,7 @@ mod db;
 mod form;
 mod handlers;
 mod models;
+mod theme;
 mod ui;
 
 use std::io;
