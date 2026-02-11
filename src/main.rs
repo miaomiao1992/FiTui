@@ -1,13 +1,26 @@
 use std::io;
+
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+
 use ratatui::{prelude::*, widgets::*};
 
+mod db;
+mod models;
+
 fn main() -> io::Result<()> {
-    // Setup terminal
+    // ---- Database startup ----
+    let conn = db::init_db().expect("Failed to init database");
+
+    // Seed only once for testing
+    db::seed_data(&conn).ok();
+
+    let transactions = db::get_transactions(&conn).expect("Failed to load transactions");
+
+    // ---- Terminal setup ----
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
@@ -15,18 +28,30 @@ fn main() -> io::Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Main UI loop
+    // ---- Main loop ----
     loop {
         terminal.draw(|f| {
-            let block = Block::default()
-                .title("💰 Budget TUI")
-                .borders(Borders::ALL);
+            let size = f.size();
 
-            let text = Paragraph::new("Press Q to quit.\nNext: transactions + SQLite")
-                .block(block)
-                .alignment(Alignment::Center);
+            let items: Vec<ListItem> = transactions
+                .iter()
+                .map(|tx| {
+                    ListItem::new(format!(
+                        "{} | {} | ₹{}",
+                        tx.created_at, tx.description, tx.amount
+                    ))
+                })
+                .collect();
 
-            f.render_widget(text, f.size());
+            let list = List::new(items)
+                .block(
+                    Block::default()
+                        .title("💰 Transactions")
+                        .borders(Borders::ALL),
+                )
+                .highlight_style(Style::default().bold());
+
+            f.render_widget(list, size);
         })?;
 
         // Input handling
@@ -39,7 +64,7 @@ fn main() -> io::Result<()> {
         }
     }
 
-    // Cleanup terminal
+    // ---- Cleanup ----
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
 
