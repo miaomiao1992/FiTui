@@ -11,6 +11,9 @@ pub enum Mode {
 pub struct App {
     pub mode: Mode,
     pub form: TransactionForm,
+
+    // ✅ NEW: selected transaction index
+    pub selected: usize,
 }
 
 impl App {
@@ -18,6 +21,7 @@ impl App {
         Self {
             mode: Mode::Normal,
             form: TransactionForm::new(),
+            selected: 0,
         }
     }
 
@@ -33,5 +37,23 @@ impl App {
             &self.form.date,
         )
         .unwrap();
+    }
+
+    // ✅ Delete selected transaction
+    pub fn delete_selected(&mut self, conn: &Connection, txs_len: usize) {
+        if txs_len == 0 {
+            return;
+        }
+
+        let id = db::get_transactions(conn)
+            .unwrap()[self.selected]
+            .id;
+
+        db::delete_transaction(conn, id).unwrap();
+
+        // Clamp selection
+        if self.selected > 0 {
+            self.selected -= 1;
+        }
     }
 }

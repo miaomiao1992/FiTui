@@ -22,7 +22,8 @@ pub fn draw_ui(
         .split(f.size());
 
     draw_header(f, chunks[0], earned, spent, balance);
-    draw_transactions(f, chunks[1], transactions);
+    draw_transactions(f, chunks[1], transactions, app);
+
 
     if app.mode == Mode::Adding {
         draw_popup(f, app);
@@ -40,7 +41,7 @@ fn draw_header(f: &mut Frame, area: Rect, earned: f64, spent: f64, balance: f64)
     f.render_widget(header, area);
 }
 
-fn draw_transactions(f: &mut Frame, area: Rect, transactions: &[Transaction]) {
+fn draw_transactions(f: &mut Frame, area: Rect, transactions: &[Transaction], app: &App) {
     let items: Vec<ListItem> = transactions
         .iter()
         .map(|tx| {
@@ -51,19 +52,34 @@ fn draw_transactions(f: &mut Frame, area: Rect, transactions: &[Transaction]) {
 
             ListItem::new(Line::styled(
                 format!(
-                    "{:<12} {:<12} ₹{:>8.2} [{:?}]",
-                    tx.date, tx.source, tx.amount, tx.tag
+                    "{:<12} {:<12} ₹{:>8.2} [{}]",
+                    tx.date,
+                    tx.source,
+                    tx.amount,
+                    tx.tag.as_str()
                 ),
                 style,
             ))
         })
         .collect();
 
-    let list = List::new(items)
-        .block(Block::default().title("💰 Transactions").borders(Borders::ALL));
+    // ✅ Selection state
+    let mut state = ratatui::widgets::ListState::default();
+    state.select(Some(app.selected));
 
-    f.render_widget(list, area);
+    let list = List::new(items)
+        .block(Block::default().title("💰 Transactions (↑↓ select, d delete)").borders(Borders::ALL))
+        .highlight_style(
+            Style::default()
+                .bg(Color::Blue)
+                .fg(Color::White)
+                .bold(),
+        )
+        .highlight_symbol("👉 ");
+
+    f.render_stateful_widget(list, area, &mut state);
 }
+
 
 fn draw_popup(f: &mut Frame, app: &App) {
     let area = centered_rect(60, 40, f.size());

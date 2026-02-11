@@ -88,6 +88,10 @@ pub fn total_spent(conn: &Connection) -> Result<f64> {
         |row| row.get(0),
     )
 }
+pub fn delete_transaction(conn: &Connection, id: i32) -> rusqlite::Result<()> {
+    conn.execute("DELETE FROM transactions WHERE id = ?", [id])?;
+    Ok(())
+}
 
 pub fn spent_per_tag(conn: &Connection) -> Result<Vec<(String, f64)>> {
     let mut stmt = conn.prepare(
