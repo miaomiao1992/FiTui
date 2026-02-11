@@ -1,6 +1,8 @@
 use rusqlite::{Connection, Result};
 
-use crate::models::{Transaction, TransactionType, Tag};
+use std::collections::HashMap;
+
+use crate::models::{Tag, Transaction, TransactionType};
 
 pub fn init_db() -> Result<Connection> {
     let conn = Connection::open("budget.db")?;
@@ -20,6 +22,10 @@ pub fn init_db() -> Result<Connection> {
     Ok(conn)
 }
 
+// ============================
+// Load Transactions
+// ============================
+
 pub fn get_transactions(conn: &Connection) -> Result<Vec<Transaction>> {
     let mut stmt = conn.prepare(
         "SELECT id, source, amount, kind, tag, date
@@ -33,7 +39,10 @@ pub fn get_transactions(conn: &Connection) -> Result<Vec<Transaction>> {
             source: row.get(1)?,
             amount: row.get(2)?,
             kind: TransactionType::from_str(&row.get::<_, String>(3)?),
+
+            // ✅ Tag wrapper
             tag: Tag::from_str(&row.get::<_, String>(4)?),
+
             date: row.get(5)?,
         })
     })?;
@@ -46,12 +55,16 @@ pub fn get_transactions(conn: &Connection) -> Result<Vec<Transaction>> {
     Ok(transactions)
 }
 
+// ============================
+// Add Transaction
+// ============================
+
 pub fn add_transaction(
     conn: &Connection,
     source: &str,
     amount: f64,
     kind: TransactionType,
-    tag: Tag,
+    tag: &Tag, // ✅ borrow tag, don’t move
     date: &str,
 ) -> Result<()> {
     conn.execute(
@@ -63,14 +76,18 @@ pub fn add_transaction(
     Ok(())
 }
 
+// ============================
+// Delete Transaction
+// ============================
+
 pub fn delete_transaction(conn: &Connection, id: i32) -> Result<()> {
     conn.execute("DELETE FROM transactions WHERE id = ?1", [id])?;
     Ok(())
 }
 
-/* -------------------------
-   📊 Stats Queries
---------------------------*/
+// ============================
+// Totals
+// ============================
 
 pub fn total_earned(conn: &Connection) -> Result<f64> {
     conn.query_row(
@@ -92,27 +109,31 @@ pub fn total_spent(conn: &Connection) -> Result<f64> {
     )
 }
 
-/// Returns spending grouped by tag:
-/// Example:
-/// Food → 1200
-/// Travel → 500
-pub fn spent_per_tag(conn: &Connection) -> Result<Vec<(String, f64)>> {
+// ============================
+// Stats: Spending Per Tag
+// ============================
+
+pub fn spent_per_tag(conn: &Connection) -> Result<HashMap<Tag, f64>> {
     let mut stmt = conn.prepare(
         "SELECT tag, COALESCE(SUM(amount), 0)
          FROM transactions
          WHERE kind = 'debit'
-         GROUP BY tag
-         ORDER BY SUM(amount) DESC",
+         GROUP BY tag",
     )?;
 
     let rows = stmt.query_map([], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
+        let tag_str: String = row.get(0)?;
+        let total: f64 = row.get(1)?;
+
+        Ok((Tag::from_str(&tag_str), total))
     })?;
 
-    let mut result = Vec::new();
+    let mut map = HashMap::new();
+
     for r in rows {
-        result.push(r?);
+        let (tag, total) = r?;
+        map.insert(tag, total);
     }
 
-    Ok(result)
+    Ok(map)
 }

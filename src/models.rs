@@ -1,3 +1,7 @@
+// ============================
+// Transaction Type
+// ============================
+
 #[derive(Debug, Clone, Copy)]
 pub enum TransactionType {
     Credit,
@@ -20,50 +24,26 @@ impl TransactionType {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Tag {
-    Food,
-    Travel,
-    Shopping,
-    Bills,
-    Salary,
-    Other,
-}
+// ============================
+// Dynamic Tag Wrapper
+// ============================
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Tag(pub String);
 
 impl Tag {
     pub fn as_str(&self) -> &str {
-        match self {
-            Tag::Food => "food",
-            Tag::Travel => "travel",
-            Tag::Shopping => "shopping",
-            Tag::Bills => "bills",
-            Tag::Salary => "salary",
-            Tag::Other => "other",
-        }
+        &self.0
     }
 
     pub fn from_str(s: &str) -> Self {
-        match s {
-            "food" => Tag::Food,
-            "travel" => Tag::Travel,
-            "shopping" => Tag::Shopping,
-            "bills" => Tag::Bills,
-            "salary" => Tag::Salary,
-            _ => Tag::Other,
-        }
-    }
-
-    pub fn all() -> Vec<Tag> {
-        vec![
-            Tag::Food,
-            Tag::Travel,
-            Tag::Shopping,
-            Tag::Bills,
-            Tag::Salary,
-            Tag::Other,
-        ]
+        Tag(s.to_string())
     }
 }
+
+// ============================
+// Transaction Struct
+// ============================
 
 #[derive(Debug, Clone)]
 pub struct Transaction {

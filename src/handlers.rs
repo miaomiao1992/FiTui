@@ -46,7 +46,7 @@ fn handle_normal(app: &mut App, key: KeyCode, conn: &Connection) -> bool {
             }
         }
 
-        // Delete selected transaction ✅ FIXED
+        // Delete selected transaction
         KeyCode::Char('d') => {
             app.delete_selected(conn);
         }
@@ -73,10 +73,17 @@ fn handle_form(app: &mut App, key: KeyCode, conn: &Connection) -> bool {
             app.form.active = app.form.active.next();
         }
 
-        // Toggle Kind / Cycle Tag
-        KeyCode::Left | KeyCode::Right => match app.form.active {
+        // 👉 Right Arrow = Forward
+        KeyCode::Right => match app.form.active {
             crate::form::Field::Kind => app.form.toggle_kind(),
-            crate::form::Field::Tag => app.form.next_tag(),
+            crate::form::Field::Tag => app.form.next_tag(app.tags.len()), // ✅ FIX
+            _ => {}
+        },
+
+        // 👈 Left Arrow = Backward
+        KeyCode::Left => match app.form.active {
+            crate::form::Field::Kind => app.form.toggle_kind(),
+            crate::form::Field::Tag => app.form.prev_tag(app.tags.len()), // ✅ FIX
             _ => {}
         },
 
@@ -110,7 +117,7 @@ fn handle_form(app: &mut App, key: KeyCode, conn: &Connection) -> bool {
 fn handle_stats(app: &mut App, key: KeyCode) -> bool {
     match key {
         // Exit Stats page back to normal
-        KeyCode::Char('q') => {
+        KeyCode::Esc => {
             app.mode = Mode::Normal;
         }
 

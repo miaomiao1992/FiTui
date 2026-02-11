@@ -3,10 +3,12 @@ use ratatui::{
     widgets::{Clear, List, ListItem, ListState, Paragraph},
 };
 
+use std::collections::HashMap;
+
 use crate::{
     app::{App, Mode},
     form::Field,
-    models::{Transaction, TransactionType},
+    models::{Tag, Transaction, TransactionType},
     theme::Theme,
 };
 
@@ -20,7 +22,7 @@ pub fn draw_ui(
     earned: f64,
     spent: f64,
     balance: f64,
-    per_tag: &[(String, f64)],
+    per_tag: &HashMap<Tag, f64>, // ✅ HashMap stats
     app: &App,
 ) {
     let theme = Theme::default();
@@ -110,8 +112,8 @@ fn draw_transactions_list(
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(1),     // List
-            Constraint::Length(1),  // Footer hint
+            Constraint::Min(1),
+            Constraint::Length(1),
         ])
         .split(area);
 
@@ -171,6 +173,7 @@ fn create_divider(theme: &Theme) -> ListItem<'static> {
 fn create_transaction_row(tx: &Transaction, theme: &Theme) -> ListItem<'static> {
     let color = theme.transaction_color(tx.kind);
     let kind_label = format_transaction_type(tx.kind);
+
     let tag_label = format!("<{}>", tx.tag.as_str());
 
     let line = Line::from(vec![
@@ -211,7 +214,7 @@ fn draw_stats_view(
     earned: f64,
     spent: f64,
     balance: f64,
-    per_tag: &[(String, f64)],
+    per_tag: &HashMap<Tag, f64>,
     theme: &Theme,
 ) {
     let layout = Layout::default()
@@ -232,7 +235,7 @@ fn draw_stats_view(
     f.render_widget(stats_widget, layout[0]);
 
     let footer = Paragraph::new(Line::styled(
-        "[q] Back   |   Stats Mode",
+        "[Esc] Back   |   Stats Mode",
         Style::default().fg(theme.muted),
     ))
     .alignment(Alignment::Center);
@@ -244,7 +247,7 @@ fn build_stats_content(
     earned: f64,
     spent: f64,
     balance: f64,
-    per_tag: &[(String, f64)],
+    per_tag: &HashMap<Tag, f64>,
     theme: &Theme,
 ) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
@@ -278,18 +281,18 @@ fn create_overview_section(earned: f64, spent: f64, balance: f64) -> Vec<Line<'s
 }
 
 fn create_tag_breakdown_section(
-    per_tag: &[(String, f64)],
+    per_tag: &HashMap<Tag, f64>,
     theme: &Theme,
 ) -> Vec<Line<'static>> {
-    let max_spent = per_tag
-        .iter()
-        .map(|(_, amount)| *amount)
-        .fold(0.0, f64::max);
+    let max_spent = per_tag.values().cloned().fold(0.0, f64::max);
 
-    per_tag
-        .iter()
-        .map(|(tag, total)| create_tag_bar(tag, *total, max_spent, theme))
-        .collect()
+    let mut lines = Vec::new();
+
+    for (tag, total) in per_tag {
+        lines.push(create_tag_bar(tag.as_str(), *total, max_spent, theme));
+    }
+
+    lines
 }
 
 fn create_tag_bar(tag: &str, amount: f64, max_amount: f64, theme: &Theme) -> Line<'static> {
@@ -350,7 +353,7 @@ fn build_form_content(app: &App, theme: &Theme) -> Vec<Line<'static>> {
         Line::raw(""),
 
         create_type_selector(&form.kind, theme),
-        create_tag_selector(&form.tag, theme),
+        create_tag_selector(&app.tags, form.tag_index, theme),
 
         Line::raw(""),
 
@@ -366,9 +369,8 @@ fn build_form_content(app: &App, theme: &Theme) -> Vec<Line<'static>> {
     ]
 }
 
-
 fn create_form_field(
-   label: &str,
+    label: &str,
     value: &str,
     active_field: Field,
     field: Field,
@@ -376,14 +378,12 @@ fn create_form_field(
 ) -> Line<'static> {
     let is_active = active_field == field;
 
-    // Label style: highlighted when active
     let label_style = if is_active {
         theme.title()
     } else {
         theme.muted_text()
     };
 
-    // Value style: cursor block when active
     let value_style = if is_active {
         theme.cursor_style()
     } else {
@@ -395,7 +395,6 @@ fn create_form_field(
         Span::styled(value.to_string(), value_style),
     ])
 }
-
 
 fn create_type_selector(kind: &TransactionType, theme: &Theme) -> Line<'static> {
     let kind_style = match kind {
@@ -410,11 +409,16 @@ fn create_type_selector(kind: &TransactionType, theme: &Theme) -> Line<'static> 
     ])
 }
 
-fn create_tag_selector(tag: &crate::models::Tag, theme: &Theme) -> Line<'static> {
+fn create_tag_selector(tags: &[Tag], index: usize, theme: &Theme) -> Line<'static> {
+    let tag = tags
+        .get(index)
+        .map(|t| t.as_str())
+        .unwrap_or("other");
+
     Line::from(vec![
         Span::styled("Tag    : ", theme.muted_text()),
         Span::styled(
-            format!("<{:?}>", tag),
+            format!("<{}>", tag),
             Style::default()
                 .fg(theme.accent)
                 .add_modifier(Modifier::ITALIC),
@@ -422,7 +426,6 @@ fn create_tag_selector(tag: &crate::models::Tag, theme: &Theme) -> Line<'static>
         Span::styled("   ← →", theme.muted_text()),
     ])
 }
-
 
 /* ============================================================================
  * UTILITIES

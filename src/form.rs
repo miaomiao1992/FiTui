@@ -1,4 +1,4 @@
-use crate::models::{Tag, TransactionType};
+use crate::models::TransactionType;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum Field {
@@ -26,9 +26,11 @@ pub struct TransactionForm {
     pub source: String,
     pub amount: String,
     pub kind: TransactionType,
-    pub tag: Tag,
-    pub date: String,
 
+    // ✅ Tag is now dynamic (index into config.tags)
+    pub tag_index: usize,
+
+    pub date: String,
     pub active: Field,
 }
 
@@ -38,7 +40,10 @@ impl TransactionForm {
             source: String::new(),
             amount: String::new(),
             kind: TransactionType::Debit,
-            tag: Tag::Other,
+
+            // Default to first tag in config
+            tag_index: 0,
+
             date: "2026-02-11".into(),
             active: Field::Source,
         }
@@ -48,14 +53,17 @@ impl TransactionForm {
         *self = Self::new();
     }
 
-    // ✅ Only text fields accept typing
+    // ============================
+    // Typing Support (Text Fields Only)
+    // ============================
+
     pub fn push_char(&mut self, c: char) {
         match self.active {
             Field::Source => self.source.push(c),
             Field::Amount => self.amount.push(c),
             Field::Date => self.date.push(c),
 
-            // Kind + Tag no longer accept raw typing
+            // Kind + Tag no typing
             _ => {}
         }
     }
@@ -75,7 +83,10 @@ impl TransactionForm {
         }
     }
 
-    // ✅ Toggle Credit/Debit
+    // ============================
+    // Toggle Credit/Debit
+    // ============================
+
     pub fn toggle_kind(&mut self) {
         self.kind = match self.kind {
             TransactionType::Credit => TransactionType::Debit,
@@ -83,15 +94,29 @@ impl TransactionForm {
         };
     }
 
-    // ✅ Cycle Tags
-    pub fn next_tag(&mut self) {
-        self.tag = match self.tag {
-            Tag::Food => Tag::Travel,
-            Tag::Travel => Tag::Shopping,
-            Tag::Shopping => Tag::Bills,
-            Tag::Bills => Tag::Salary,
-            Tag::Salary => Tag::Other,
-            Tag::Other => Tag::Food,
-        };
+    // ============================
+    // Dynamic Tag Cycling
+    // ============================
+
+    // 👉 Right Arrow (Next Tag)
+    pub fn next_tag(&mut self, total_tags: usize) {
+        if total_tags == 0 {
+            return;
+        }
+
+        self.tag_index = (self.tag_index + 1) % total_tags;
+    }
+
+    // 👈 Left Arrow (Previous Tag)
+    pub fn prev_tag(&mut self, total_tags: usize) {
+        if total_tags == 0 {
+            return;
+        }
+
+        if self.tag_index == 0 {
+            self.tag_index = total_tags - 1;
+        } else {
+            self.tag_index -= 1;
+        }
     }
 }

@@ -5,6 +5,7 @@ mod handlers;
 mod models;
 mod theme;
 mod ui;
+mod config;
 
 use std::io;
 
@@ -38,7 +39,7 @@ fn main() -> io::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     // ----------------------------
-    // ✅ App State Init (NEW)
+    // ✅ App State Init
     // ----------------------------
     let mut app = App::new(&conn);
 
@@ -53,7 +54,6 @@ fn main() -> io::Result<()> {
         let spent = db::total_spent(&conn).unwrap();
         let balance = earned - spent;
 
-        // ✅ Per-tag breakdown for Stats page
         let per_tag = db::spent_per_tag(&conn).unwrap();
 
         // ----------------------------
@@ -62,11 +62,11 @@ fn main() -> io::Result<()> {
         terminal.draw(|f| {
             ui::draw_ui(
                 f,
-                &app.transactions, // ✅ Use cached transactions
+                &app.transactions,
                 earned,
                 spent,
                 balance,
-                &per_tag,          // ✅ NEW
+                &per_tag,
                 &app,
             );
         })?;
@@ -79,14 +79,9 @@ fn main() -> io::Result<()> {
                 if key.kind == KeyEventKind::Press {
                     let quit = handlers::handle_key(&mut app, key.code, &conn);
 
-                    // ✅ If user quits, break loop
                     if quit {
                         break;
                     }
-
-                    // ✅ Refresh transactions after actions
-                    // (Add/Delete updates instantly)
-                    app.refresh(&conn);
                 }
             }
         }
