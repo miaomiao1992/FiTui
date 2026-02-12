@@ -1,6 +1,6 @@
 use ratatui::{
     prelude::*,
-    widgets::{Clear, List, ListItem, ListState, Paragraph, Block, Padding},
+    widgets::{Clear, List, ListItem, ListState, Paragraph, Block, Padding, BarChart},
 };
 use std::collections::HashMap;
 
@@ -18,12 +18,17 @@ pub fn draw_ui(
     spent: f64,
     balance: f64,
     per_tag: &HashMap<Tag, f64>,
+    monthly_history: &[(String, f64, f64)],
+    tx_count: usize,
+    largest: Option<Transaction>,
+    smallest: Option<Transaction>,
+    top_tags: &[(Tag, f64)],
     app: &App,
 ) {
     let theme = Theme::default();
     
     match app.mode {
-        Mode::Stats => draw_stats_view(f, earned, spent, balance, per_tag, &theme),
+        Mode::Stats => draw_stats_view(f, earned, spent, balance, per_tag, monthly_history, tx_count, largest, smallest, top_tags, &theme),
         Mode::Adding => {
             draw_main_view(f, transactions, earned, spent, balance, app, &theme);
             draw_transaction_form(f, app, &theme);
@@ -297,6 +302,11 @@ fn draw_stats_view(
     spent: f64,
     balance: f64,
     per_tag: &HashMap<Tag, f64>,
+    monthly_history: &[(String, f64, f64)],
+    tx_count: usize,
+    largest: Option<Transaction>,
+    smallest: Option<Transaction>,
+    top_tags: &[(Tag, f64)],
     theme: &Theme,
 ) {
     let layout = Layout::default()
@@ -305,12 +315,86 @@ fn draw_stats_view(
         .constraints([Constraint::Min(1), Constraint::Length(3)])
         .split(f.size());
 
-    let content = build_stats_content(earned, spent, balance, per_tag, theme);
-    let stats_widget = Paragraph::new(content)
-        .block(theme.block("📈 Statistics & Analytics"))
+    // Split main stats area into top charts and bottom breakdown
+    let top_bottom = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(12), Constraint::Min(1)])
+        .split(layout[0]);
+
+    let charts_area = top_bottom[0];
+    let breakdown_area = top_bottom[1];
+
+    // Charts area: left = monthly history, right = top tags
+    let cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(charts_area);
+
+    // Prepare monthly bars and sparkline
+    let mut month_labels: Vec<String> = Vec::new();
+    let mut earned_vals: Vec<u64> = Vec::new();
+    let mut spent_vals: Vec<u64> = Vec::new();
+    for (m, e, s) in monthly_history.iter().rev() {
+        month_labels.push(m.clone());
+        earned_vals.push((*e).round().abs() as u64);
+        spent_vals.push((*s).round().abs() as u64);
+    }
+
+    // Labels as &str for BarChart
+    let month_label_refs: Vec<&str> = month_labels.iter().map(|s| s.as_str()).collect();
+
+    // Monthly earned bar chart
+    let monthly_earned: Vec<(&str, u64)> = month_label_refs
+        .iter()
+        .zip(earned_vals.iter())
+        .map(|(l, v)| (*l, *v))
+        .collect();
+
+    let max_month = earned_vals.iter().chain(spent_vals.iter()).copied().max().unwrap_or(0);
+
+    let earned_chart = BarChart::default()
+        .data(&monthly_earned)
+        .block(Block::default().title("Monthly Earned").borders(ratatui::widgets::Borders::ALL))
+        .max(max_month.max(1))
+        .bar_width(7)
+        .bar_gap(1)
+        .bar_style(Style::default().fg(theme.credit));
+
+    f.render_widget(earned_chart, cols[0]);
+
+    // Right column: top tags bar chart
+    let mut tag_labels: Vec<String> = Vec::new();
+    let mut tag_vals: Vec<u64> = Vec::new();
+    for (t, v) in top_tags.iter().take(6) {
+        tag_labels.push(t.as_str().to_string());
+        tag_vals.push((*v).round().abs() as u64);
+    }
+    let tag_label_refs: Vec<&str> = tag_labels.iter().map(|s| s.as_str()).collect();
+    let tag_bars: Vec<(&str, u64)> = tag_label_refs
+        .iter()
+        .zip(tag_vals.iter())
+        .map(|(l, v)| (*l, *v))
+        .collect();
+
+    let max_tag = tag_vals.iter().copied().max().unwrap_or(0);
+
+    let tags_chart = BarChart::default()
+        .data(&tag_bars)
+        .block(Block::default().title("Top Tags").borders(ratatui::widgets::Borders::ALL))
+        .max(max_tag.max(1))
+        .bar_width(6)
+        .bar_gap(1)
+        .bar_style(Style::default().fg(theme.debit));
+
+    f.render_widget(tags_chart, cols[1]);
+
+    // Below charts: breakdown paragraph (reuse existing content builder for details)
+    let breakdown_lines = build_stats_content(earned, spent, balance, per_tag, monthly_history, tx_count, largest, smallest, top_tags, theme);
+    let breakdown = Paragraph::new(breakdown_lines)
+        .block(theme.block("Details"))
         .alignment(Alignment::Left);
 
-    f.render_widget(stats_widget, layout[0]);
+    f.render_widget(breakdown, breakdown_area);
 
     // Enhanced footer
     let footer_block = Block::default()
@@ -334,6 +418,11 @@ fn build_stats_content(
     spent: f64,
     balance: f64,
     per_tag: &HashMap<Tag, f64>,
+    monthly_history: &[(String, f64, f64)],
+    tx_count: usize,
+    largest: Option<Transaction>,
+    smallest: Option<Transaction>,
+    top_tags: &[(Tag, f64)],
     theme: &Theme,
 ) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
@@ -345,6 +434,90 @@ fn build_stats_content(
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         Style::default().fg(theme.subtle),
     ));
+    lines.push(Line::raw(""));
+
+    // Quick stats summary
+    lines.push(Line::styled(
+        format!("  Transactions: {}  |  Total Earned: ₹{:.2}  |  Total Spent: ₹{:.2}", tx_count, earned, spent),
+        Style::default().fg(theme.muted),
+    ));
+    lines.push(Line::raw(""));
+
+    // Monthly history mini-table
+    lines.push(Line::styled(
+        "  Last Months (YYYY-MM)  Earned      Spent",
+        Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+    ));
+    lines.push(Line::raw(""));
+    if monthly_history.is_empty() {
+        lines.push(Line::styled(
+            "     No monthly data available.",
+            Style::default().fg(theme.muted).add_modifier(Modifier::ITALIC),
+        ));
+    } else {
+        for (m, e, s) in monthly_history {
+            lines.push(Line::from(vec![
+                Span::raw("     "),
+                Span::styled(format!("{:<7}", m), Style::default().fg(theme.foreground)),
+                Span::raw("  "),
+                Span::styled(format!("₹{:>9.2}", e), Style::default().fg(theme.credit)),
+                Span::raw("  "),
+                Span::styled(format!("₹{:>9.2}", s), Style::default().fg(theme.debit)),
+            ]));
+        }
+    }
+
+    lines.push(Line::raw(""));
+
+    // Top tags
+    lines.push(Line::styled(
+        "  Top Spending Categories",
+        Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+    ));
+    lines.push(Line::raw(""));
+    if top_tags.is_empty() {
+        lines.push(Line::styled(
+            "     No category data.",
+            Style::default().fg(theme.muted).add_modifier(Modifier::ITALIC),
+        ));
+    } else {
+        for (i, (tag, amt)) in top_tags.iter().take(5).enumerate() {
+            lines.push(Line::from(vec![
+                Span::raw("     "),
+                Span::styled(format!("{}. #{:<12}", i + 1, tag.as_str()), Style::default().fg(theme.foreground)),
+                Span::raw("  "),
+                Span::styled(format!("₹{:>9.2}", amt), Style::default().fg(theme.debit)),
+            ]));
+        }
+    }
+
+    lines.push(Line::raw(""));
+
+    // Largest / Smallest transactions
+    lines.push(Line::styled(
+        "  Notable Transactions",
+        Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+    ));
+    lines.push(Line::raw(""));
+    if let Some(tx) = largest {
+        lines.push(Line::from(vec![
+            Span::raw("     Largest: "),
+            Span::styled(format!("{} | ₹{:.2} | #{}", tx.source, tx.amount, tx.tag.as_str()), Style::default().fg(theme.foreground)),
+        ]));
+    }
+    if let Some(tx) = smallest {
+        lines.push(Line::from(vec![
+            Span::raw("     Smallest: "),
+            Span::styled(format!("{} | ₹{:.2} | #{}", tx.source, tx.amount, tx.tag.as_str()), Style::default().fg(theme.foreground)),
+        ]));
+    }
+
+    lines.push(Line::raw(""));
+    lines.push(Line::styled(
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        Style::default().fg(theme.subtle),
+    ));
+
     lines.push(Line::raw(""));
     lines.push(Line::styled(
         "  📊 Spending Breakdown by Category",

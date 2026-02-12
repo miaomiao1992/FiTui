@@ -56,6 +56,46 @@ fn main() -> io::Result<()> {
 
         let per_tag = db::spent_per_tag(&conn).unwrap();
 
+        // Additional richer stats computed from in-memory transactions
+        let tx_count = app.transactions.len();
+
+        // Largest and smallest transactions by amount
+        let largest = app
+            .transactions
+            .iter()
+            .max_by(|a, b| a.amount.partial_cmp(&b.amount).unwrap_or(std::cmp::Ordering::Equal))
+            .cloned();
+
+        let smallest = app
+            .transactions
+            .iter()
+            .min_by(|a, b| a.amount.partial_cmp(&b.amount).unwrap_or(std::cmp::Ordering::Equal))
+            .cloned();
+
+        // Top tags (descending) from per_tag map
+        let mut top_tags: Vec<(crate::models::Tag, f64)> = per_tag.iter().map(|(t, v)| (t.clone(), *v)).collect();
+        top_tags.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Monthly history: aggregate by YYYY-MM string
+        use std::collections::BTreeMap;
+        let mut monthly_map: BTreeMap<String, (f64, f64)> = BTreeMap::new();
+        for tx in &app.transactions {
+            let month = if tx.date.len() >= 7 { tx.date[..7].to_string() } else { tx.date.clone() };
+            let entry = monthly_map.entry(month).or_insert((0.0, 0.0));
+            match tx.kind {
+                crate::models::TransactionType::Credit => entry.0 += tx.amount,
+                crate::models::TransactionType::Debit => entry.1 += tx.amount,
+            }
+        }
+
+        // Keep last up to 6 months (BTreeMap is sorted ascending)
+        let monthly_history: Vec<(String, f64, f64)> = monthly_map
+            .into_iter()
+            .rev()
+            .take(6)
+            .map(|(m, (e, s))| (m, e, s))
+            .collect();
+
         // ----------------------------
         // Draw UI
         // ----------------------------
@@ -67,6 +107,11 @@ fn main() -> io::Result<()> {
                 spent,
                 balance,
                 &per_tag,
+                &monthly_history,
+                tx_count,
+                largest.clone(),
+                smallest.clone(),
+                &top_tags,
                 &app,
             );
         })?;
