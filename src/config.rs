@@ -22,31 +22,25 @@ impl Default for Config {
     }
 }
 
-/// ✅ Get standard OS config.yaml location
 fn config_path() -> PathBuf {
     let proj_dirs =
         ProjectDirs::from("com", "ayan", "fitui").expect("Could not find config directory");
 
     let config_dir = proj_dirs.config_dir();
-
-    // Ensure folder exists
     fs::create_dir_all(config_dir).expect("Failed to create config directory");
 
     config_dir.join("config.yaml")
 }
 
-/// ✅ Load config.yaml (auto-create if missing)
 pub fn load_config() -> Config {
     let path = config_path();
 
-    // ----------------------------
-    // If missing → create default config
-    // ----------------------------
+    // Auto-create default config if missing
     if !path.exists() {
         let default = Config::default();
 
-        let yaml = serde_yaml::to_string(&default)
-            .expect("Failed to serialize default config");
+        let yaml =
+            serde_yaml::to_string(&default).expect("Failed to serialize default config");
 
         fs::write(&path, yaml).expect("Failed to write default config.yaml");
 
@@ -55,12 +49,6 @@ pub fn load_config() -> Config {
         return default;
     }
 
-    // ----------------------------
-    // Otherwise load existing config
-    // ----------------------------
-    let text = fs::read_to_string(&path)
-        .expect("Failed to read config.yaml");
-
-    serde_yaml::from_str(&text)
-        .expect("Invalid YAML format")
+    let text = fs::read_to_string(&path).expect("Failed to read config.yaml");
+    serde_yaml::from_str(&text).expect("Invalid YAML format")
 }

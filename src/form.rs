@@ -27,7 +27,7 @@ pub struct TransactionForm {
     pub amount: String,
     pub kind: TransactionType,
 
-    // ✅ Tag is now dynamic (index into config.tags)
+    // Index into the dynamically loaded config tags
     pub tag_index: usize,
 
     pub date: String,
@@ -40,10 +40,7 @@ impl TransactionForm {
             source: String::new(),
             amount: String::new(),
             kind: TransactionType::Debit,
-
-            // Default to first tag in config
             tag_index: 0,
-
             date: "2026-02-11".into(),
             active: Field::Source,
         }
@@ -53,17 +50,11 @@ impl TransactionForm {
         *self = Self::new();
     }
 
-    // ============================
-    // Typing Support (Text Fields Only)
-    // ============================
-
     pub fn push_char(&mut self, c: char) {
         match self.active {
             Field::Source => self.source.push(c),
             Field::Amount => self.amount.push(c),
             Field::Date => self.date.push(c),
-
-            // Kind + Tag no typing
             _ => {}
         }
     }
@@ -83,10 +74,6 @@ impl TransactionForm {
         }
     }
 
-    // ============================
-    // Toggle Credit/Debit
-    // ============================
-
     pub fn toggle_kind(&mut self) {
         self.kind = match self.kind {
             TransactionType::Credit => TransactionType::Debit,
@@ -94,11 +81,6 @@ impl TransactionForm {
         };
     }
 
-    // ============================
-    // Dynamic Tag Cycling
-    // ============================
-
-    // 👉 Right Arrow (Next Tag)
     pub fn next_tag(&mut self, total_tags: usize) {
         if total_tags == 0 {
             return;
@@ -107,7 +89,6 @@ impl TransactionForm {
         self.tag_index = (self.tag_index + 1) % total_tags;
     }
 
-    // 👈 Left Arrow (Previous Tag)
     pub fn prev_tag(&mut self, total_tags: usize) {
         if total_tags == 0 {
             return;

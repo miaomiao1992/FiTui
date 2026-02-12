@@ -5,13 +5,8 @@ use ratatui::{
 
 use crate::models::TransactionType;
 
-/* ============================================================================
- * THEME CONFIGURATION
- * ========================================================================== */
-
 #[derive(Clone, Copy)]
 pub struct Theme {
-    /* Palette */
     pub accent: Color,
     pub accent_soft: Color,
 
@@ -28,10 +23,6 @@ pub struct Theme {
 }
 
 impl Theme {
-    /* ============================================================================
-     * DEFAULT DARK THEME
-     * ========================================================================== */
-
     pub fn default() -> Self {
         Self {
             accent: Color::Rgb(100, 181, 246),
@@ -49,10 +40,6 @@ impl Theme {
             foreground: Color::Rgb(220, 225, 245),
         }
     }
-
-    /* ============================================================================
-     * SEMANTIC COLOR HELPERS
-     * ========================================================================== */
 
     pub fn transaction_color(&self, tx_type: TransactionType) -> Color {
         match tx_type {
@@ -83,10 +70,6 @@ impl Theme {
             .add_modifier(Modifier::BOLD)
     }
 
-    /* ============================================================================
-     * HIGHLIGHT + SELECTION
-     * ========================================================================== */
-
     pub fn highlight_style(&self) -> Style {
         Style::default()
             .bg(self.surface)
@@ -99,10 +82,6 @@ impl Theme {
             .fg(self.accent)
             .add_modifier(Modifier::REVERSED)
     }
-
-    /* ============================================================================
-     * BLOCKS + PANELS
-     * ========================================================================== */
 
     pub fn block<'a>(&self, title: &'a str) -> Block<'a> {
         Block::default()

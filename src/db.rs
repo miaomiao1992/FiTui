@@ -1,28 +1,25 @@
 use rusqlite::{Connection, Result};
 use std::collections::HashMap;
-use directories::ProjectDirs;
 use std::fs;
+
+use directories::ProjectDirs;
 
 use crate::models::{Tag, Transaction, TransactionType};
 
 pub fn init_db() -> Result<Connection> {
-    // ✅ Get standard OS data directory
-    let proj_dirs = ProjectDirs::from("com", "ayan", "fitui")
-        .expect("Could not determine data directory");
+    // Store DB in the OS-standard application data directory
+    let proj_dirs =
+        ProjectDirs::from("com", "ayan", "fitui").expect("Could not determine data directory");
 
     let data_dir = proj_dirs.data_dir();
-
-    // ✅ Ensure directory exists
     fs::create_dir_all(data_dir).expect("Failed to create data directory");
 
-    // ✅ Final database path
     let db_path = data_dir.join("budget.db");
-
     println!("Database location: {:?}", db_path);
 
     let conn = Connection::open(db_path)?;
 
-    // Create table if missing
+    // Create schema on first run if it doesn't exist yet
     conn.execute(
         "CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,11 +35,6 @@ pub fn init_db() -> Result<Connection> {
     Ok(conn)
 }
 
-
-// ============================
-// Load Transactions
-// ============================
-
 pub fn get_transactions(conn: &Connection) -> Result<Vec<Transaction>> {
     let mut stmt = conn.prepare(
         "SELECT id, source, amount, kind, tag, date
@@ -55,9 +47,11 @@ pub fn get_transactions(conn: &Connection) -> Result<Vec<Transaction>> {
             id: row.get(0)?,
             source: row.get(1)?,
             amount: row.get(2)?,
+
+            // Stored as string in DB, converted back into enum
             kind: TransactionType::from_str(&row.get::<_, String>(3)?),
 
-            // ✅ Tag wrapper
+            // Tags are wrapped in your custom Tag type
             tag: Tag::from_str(&row.get::<_, String>(4)?),
 
             date: row.get(5)?,
@@ -72,16 +66,12 @@ pub fn get_transactions(conn: &Connection) -> Result<Vec<Transaction>> {
     Ok(transactions)
 }
 
-// ============================
-// Add Transaction
-// ============================
-
 pub fn add_transaction(
     conn: &Connection,
     source: &str,
     amount: f64,
     kind: TransactionType,
-    tag: &Tag, // ✅ borrow tag, don’t move
+    tag: &Tag,
     date: &str,
 ) -> Result<()> {
     conn.execute(
@@ -93,18 +83,10 @@ pub fn add_transaction(
     Ok(())
 }
 
-// ============================
-// Delete Transaction
-// ============================
-
 pub fn delete_transaction(conn: &Connection, id: i32) -> Result<()> {
     conn.execute("DELETE FROM transactions WHERE id = ?1", [id])?;
     Ok(())
 }
-
-// ============================
-// Totals
-// ============================
 
 pub fn total_earned(conn: &Connection) -> Result<f64> {
     conn.query_row(
@@ -126,11 +108,8 @@ pub fn total_spent(conn: &Connection) -> Result<f64> {
     )
 }
 
-// ============================
-// Stats: Spending Per Tag
-// ============================
-
 pub fn spent_per_tag(conn: &Connection) -> Result<HashMap<Tag, f64>> {
+    // Aggregate total spending grouped by tag
     let mut stmt = conn.prepare(
         "SELECT tag, COALESCE(SUM(amount), 0)
          FROM transactions
@@ -146,7 +125,6 @@ pub fn spent_per_tag(conn: &Connection) -> Result<HashMap<Tag, f64>> {
     })?;
 
     let mut map = HashMap::new();
-
     for r in rows {
         let (tag, total) = r?;
         map.insert(tag, total);

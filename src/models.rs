@@ -1,7 +1,3 @@
-// ============================
-// Transaction Type
-// ============================
-
 #[derive(Debug, Clone, Copy)]
 pub enum TransactionType {
     Credit,
@@ -24,10 +20,6 @@ impl TransactionType {
     }
 }
 
-// ============================
-// Dynamic Tag Wrapper
-// ============================
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Tag(pub String);
 
@@ -40,10 +32,6 @@ impl Tag {
         Tag(s.to_string())
     }
 }
-
-// ============================
-// Transaction Struct
-// ============================
 
 #[derive(Debug, Clone)]
 pub struct Transaction {

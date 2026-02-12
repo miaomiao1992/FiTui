@@ -12,17 +12,13 @@ use crate::{
     theme::Theme,
 };
 
-/* ============================================================================
- * MAIN DRAW ENTRY
- * ========================================================================== */
-
 pub fn draw_ui(
     f: &mut Frame,
     transactions: &[Transaction],
     earned: f64,
     spent: f64,
     balance: f64,
-    per_tag: &HashMap<Tag, f64>, // ✅ HashMap stats
+    per_tag: &HashMap<Tag, f64>,
     app: &App,
 ) {
     let theme = Theme::default();
@@ -38,10 +34,6 @@ pub fn draw_ui(
         _ => draw_main_view(f, transactions, earned, spent, balance, app, &theme),
     }
 }
-
-/* ============================================================================
- * MAIN VIEW (Header + List)
- * ========================================================================== */
 
 fn draw_main_view(
     f: &mut Frame,
@@ -61,10 +53,6 @@ fn draw_main_view(
     draw_header(f, chunks[0], earned, spent, balance, theme);
     draw_transactions_list(f, chunks[1], transactions, app, theme);
 }
-
-/* ============================================================================
- * HEADER
- * ========================================================================== */
 
 fn draw_header(
     f: &mut Frame,
@@ -98,10 +86,6 @@ fn draw_header(
     f.render_widget(header, area);
 }
 
-/* ============================================================================
- * TRANSACTIONS LIST
- * ========================================================================== */
-
 fn draw_transactions_list(
     f: &mut Frame,
     area: Rect,
@@ -111,10 +95,7 @@ fn draw_transactions_list(
 ) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(1),
-            Constraint::Length(1),
-        ])
+        .constraints([Constraint::Min(1), Constraint::Length(1)])
         .split(area);
 
     let items = build_transaction_items(transactions, theme);
@@ -135,10 +116,6 @@ fn draw_transactions_list(
 
     f.render_widget(footer, layout[1]);
 }
-
-/* ============================================================================
- * LIST BUILDERS
- * ========================================================================== */
 
 fn build_transaction_items(transactions: &[Transaction], theme: &Theme) -> Vec<ListItem<'static>> {
     let mut items = Vec::new();
@@ -174,8 +151,6 @@ fn create_transaction_row(tx: &Transaction, theme: &Theme) -> ListItem<'static> 
     let color = theme.transaction_color(tx.kind);
     let kind_label = format_transaction_type(tx.kind);
 
-    let tag_label = format!("<{}>", tx.tag.as_str());
-
     let line = Line::from(vec![
         Span::styled(format!("{:<10}", tx.date), Style::default().fg(theme.muted)),
         Span::raw("  "),
@@ -189,7 +164,7 @@ fn create_transaction_row(tx: &Transaction, theme: &Theme) -> ListItem<'static> 
         Span::styled(format!("{:<8}", kind_label), Style::default().fg(color)),
         Span::raw("  "),
         Span::styled(
-            tag_label,
+            format!("<{}>", tx.tag.as_str()),
             Style::default()
                 .fg(theme.accent)
                 .add_modifier(Modifier::ITALIC),
@@ -205,10 +180,6 @@ fn create_list_state(selected: usize) -> ListState {
     state
 }
 
-/* ============================================================================
- * STATS VIEW
- * ========================================================================== */
-
 fn draw_stats_view(
     f: &mut Frame,
     earned: f64,
@@ -220,10 +191,7 @@ fn draw_stats_view(
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
-        .constraints([
-            Constraint::Min(1),
-            Constraint::Length(1),
-        ])
+        .constraints([Constraint::Min(1), Constraint::Length(1)])
         .split(f.size());
 
     let content = build_stats_content(earned, spent, balance, per_tag, theme);
@@ -287,7 +255,6 @@ fn create_tag_breakdown_section(
     let max_spent = per_tag.values().cloned().fold(0.0, f64::max);
 
     let mut lines = Vec::new();
-
     for (tag, total) in per_tag {
         lines.push(create_tag_bar(tag.as_str(), *total, max_spent, theme));
     }
@@ -324,10 +291,6 @@ fn calculate_bar_width(amount: f64, max_amount: f64) -> usize {
     }
 }
 
-/* ============================================================================
- * TRANSACTION FORM POPUP
- * ========================================================================== */
-
 fn draw_transaction_form(f: &mut Frame, app: &App, theme: &Theme) {
     let area = centered_rect(70, 55, f.size());
     let form_content = build_form_content(app, theme);
@@ -346,22 +309,15 @@ fn build_form_content(app: &App, theme: &Theme) -> Vec<Line<'static>> {
     vec![
         Line::styled("Add Transaction", theme.title()),
         Line::raw(""),
-
         create_form_field("Source", &form.source, form.active, Field::Source, theme),
         create_form_field("Amount", &form.amount, form.active, Field::Amount, theme),
-
         Line::raw(""),
-
         create_type_selector(&form.kind, theme),
         create_tag_selector(&app.tags, form.tag_index, theme),
-
         Line::raw(""),
-
         create_form_field("Date", &form.date, form.active, Field::Date, theme),
-
         Line::raw(""),
         Line::styled("────────────────────────────────────", theme.muted_text()),
-
         Line::styled(
             "[Tab] Next Field   [←→] Change Type/Tag   [Enter] Save   [Esc] Cancel",
             theme.muted_text(),
@@ -410,10 +366,7 @@ fn create_type_selector(kind: &TransactionType, theme: &Theme) -> Line<'static> 
 }
 
 fn create_tag_selector(tags: &[Tag], index: usize, theme: &Theme) -> Line<'static> {
-    let tag = tags
-        .get(index)
-        .map(|t| t.as_str())
-        .unwrap_or("other");
+    let tag = tags.get(index).map(|t| t.as_str()).unwrap_or("other");
 
     Line::from(vec![
         Span::styled("Tag    : ", theme.muted_text()),
@@ -426,10 +379,6 @@ fn create_tag_selector(tags: &[Tag], index: usize, theme: &Theme) -> Line<'stati
         Span::styled("   ← →", theme.muted_text()),
     ])
 }
-
-/* ============================================================================
- * UTILITIES
- * ========================================================================== */
 
 fn centered_rect(percent_x: u16, percent_y: u16, rect: Rect) -> Rect {
     let vertical_layout = Layout::default()
