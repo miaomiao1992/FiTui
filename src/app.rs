@@ -17,6 +17,8 @@ pub enum Mode {
 pub struct App {
     pub mode: Mode,
     pub form: TransactionForm,
+    // When Some(id) we're editing an existing transaction
+    pub editing: Option<i32>,
 
     // Tags loaded from YAML config
     pub tags: Vec<Tag>,
@@ -40,6 +42,7 @@ impl App {
         Self {
             mode: Mode::Normal,
             form: TransactionForm::new(),
+            editing: None,
             tags,
             transactions,
             selected: 0,
@@ -64,17 +67,54 @@ impl App {
             .unwrap_or(&Tag("other".into()))
             .clone();
 
-        db::add_transaction(
-            conn,
-            &self.form.source,
-            amount,
-            self.form.kind,
-            &tag,
-            &self.form.date,
-        )
-        .unwrap();
+        if let Some(id) = self.editing {
+            db::update_transaction(
+                conn,
+                id,
+                &self.form.source,
+                amount,
+                self.form.kind,
+                &tag,
+                &self.form.date,
+            )
+            .unwrap();
+            self.editing = None;
+        } else {
+            db::add_transaction(
+                conn,
+                &self.form.source,
+                amount,
+                self.form.kind,
+                &tag,
+                &self.form.date,
+            )
+            .unwrap();
+        }
 
         self.refresh(conn);
+    }
+
+    pub fn begin_edit_selected(&mut self) {
+        if self.transactions.is_empty() {
+            return;
+        }
+
+        let tx = &self.transactions[self.selected];
+        self.form.source = tx.source.clone();
+        self.form.amount = format!("{:.2}", tx.amount);
+        self.form.kind = tx.kind;
+
+        // Find tag index matching the transaction's tag
+        self.form.tag_index = self
+            .tags
+            .iter()
+            .position(|t| t.as_str() == tx.tag.as_str())
+            .unwrap_or(0);
+
+        self.form.date = tx.date.clone();
+        self.form.active = crate::form::Field::Source;
+        self.mode = Mode::Adding;
+        self.editing = Some(tx.id);
     }
 
     pub fn delete_selected(&mut self, conn: &Connection) {

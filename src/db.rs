@@ -88,6 +88,23 @@ pub fn delete_transaction(conn: &Connection, id: i32) -> Result<()> {
     Ok(())
 }
 
+pub fn update_transaction(
+    conn: &Connection,
+    id: i32,
+    source: &str,
+    amount: f64,
+    kind: TransactionType,
+    tag: &Tag,
+    date: &str,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE transactions SET source = ?1, amount = ?2, kind = ?3, tag = ?4, date = ?5 WHERE id = ?6",
+        (source, amount, kind.as_str(), tag.as_str(), date, id),
+    )?;
+
+    Ok(())
+}
+
 pub fn total_earned(conn: &Connection) -> Result<f64> {
     conn.query_row(
         "SELECT COALESCE(SUM(amount), 0)

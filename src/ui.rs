@@ -172,6 +172,9 @@ fn draw_transactions_list(
             Span::styled("a", Style::default().fg(theme.credit)),
             Span::styled("] Add  ", theme.muted_text()),
             Span::styled("[", theme.muted_text()),
+            Span::styled("e", Style::default().fg(theme.accent)),
+            Span::styled("] Edit  ", theme.muted_text()),
+            Span::styled("[", theme.muted_text()),
             Span::styled("d", Style::default().fg(theme.debit)),
             Span::styled("] Delete  ", theme.muted_text()),
             Span::styled("[", theme.muted_text()),
@@ -501,8 +504,14 @@ fn draw_transaction_form(f: &mut Frame, app: &App, theme: &Theme) {
     let area = centered_rect(60, 60, f.size());
     let form_content = build_form_content(app, theme);
 
+    let title = if app.editing.is_some() {
+        "✏️ Edit Transaction"
+    } else {
+        "➕ Add New Transaction"
+    };
+
     let popup = Paragraph::new(form_content)
-        .block(theme.popup("➕ Add New Transaction"))
+        .block(theme.popup(title))
         .alignment(Alignment::Left);
 
     f.render_widget(Clear, area);

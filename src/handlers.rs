@@ -18,6 +18,8 @@ fn handle_normal(app: &mut App, key: KeyCode, conn: &Connection) -> bool {
         KeyCode::Char('q') => return true,
 
         KeyCode::Char('a') => {
+            app.form.reset();
+            app.editing = None;
             app.mode = Mode::Adding;
         }
 
@@ -41,6 +43,11 @@ fn handle_normal(app: &mut App, key: KeyCode, conn: &Connection) -> bool {
             app.delete_selected(conn);
         }
 
+        KeyCode::Char('e') => {
+            // Begin editing the currently selected transaction
+            app.begin_edit_selected();
+        }
+
         _ => {}
     }
 
@@ -51,6 +58,8 @@ fn handle_form(app: &mut App, key: KeyCode, conn: &Connection) -> bool {
     match key {
         KeyCode::Esc => {
             app.mode = Mode::Normal;
+            app.editing = None;
+            app.form.reset();
         }
 
         KeyCode::Tab => {
