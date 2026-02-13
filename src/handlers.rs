@@ -2,12 +2,13 @@ use crossterm::event::KeyCode;
 use rusqlite::Connection;
 
 use crate::app::{App, Mode};
+use crate::stats;
 
 pub fn handle_key(app: &mut App, key: KeyCode, conn: &Connection) -> bool {
     match app.mode {
         Mode::Normal => handle_normal(app, key, conn),
         Mode::Adding => handle_form(app, key, conn),
-        Mode::Stats => handle_stats(app, key),
+        Mode::Stats => stats::handle_stats(app, key),
     }
 }
 
@@ -93,17 +94,6 @@ fn handle_form(app: &mut App, key: KeyCode, conn: &Connection) -> bool {
             app.mode = Mode::Normal;
         }
 
-        _ => {}
-    }
-
-    false
-}
-
-fn handle_stats(app: &mut App, key: KeyCode) -> bool {
-    match key {
-        KeyCode::Esc => {
-            app.mode = Mode::Normal;
-        }
         _ => {}
     }
 

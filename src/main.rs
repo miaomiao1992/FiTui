@@ -3,6 +3,7 @@ mod db;
 mod form;
 mod handlers;
 mod models;
+mod stats;
 mod theme;
 mod ui;
 mod config;
@@ -35,58 +36,21 @@ fn main() -> io::Result<()> {
     let mut app = App::new(&conn);
 
     loop {
-        let earned = db::total_earned(&conn).unwrap();
-        let spent = db::total_spent(&conn).unwrap();
+        let earned = stats::calculate_earned(&app.transactions);
+        let spent = stats::calculate_spent(&app.transactions);
         let balance = earned - spent;
 
-        let per_tag = db::spent_per_tag(&conn).unwrap();
+        let per_tag = stats::calculate_spent_per_tag(&app.transactions);
 
         let tx_count = app.transactions.len();
 
-        let largest = app
-            .transactions
-            .iter()
-            .max_by(|a, b| a.amount.partial_cmp(&b.amount).unwrap_or(std::cmp::Ordering::Equal))
-            .cloned();
+        let largest = stats::get_largest_transaction(&app.transactions);
 
-        let smallest = app
-            .transactions
-            .iter()
-            .min_by(|a, b| a.amount.partial_cmp(&b.amount).unwrap_or(std::cmp::Ordering::Equal))
-            .cloned();
+        let smallest = stats::get_smallest_transaction(&app.transactions);
 
-        let mut top_tags: Vec<(crate::models::Tag, f64)> =
-            per_tag.iter().map(|(t, v)| (t.clone(), *v)).collect();
+        let top_tags = stats::get_top_tags(&per_tag);
 
-        top_tags.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        use std::collections::BTreeMap;
-        let mut monthly_map: BTreeMap<String, (f64, f64)> = BTreeMap::new();
-
-        for tx in &app.transactions {
-            let month = if tx.date.len() >= 7 {
-                tx.date[..7].to_string()
-            } else {
-                tx.date.clone()
-            };
-
-            let entry = monthly_map.entry(month).or_insert((0.0, 0.0));
-
-            match tx.kind {
-                crate::models::TransactionType::Credit => entry.0 += tx.amount,
-                crate::models::TransactionType::Debit => entry.1 += tx.amount,
-            }
-        }
-
-        let monthly_history: Vec<(String, f64, f64)> = monthly_map
-            .into_iter()
-            .rev()
-            .take(6)
-            .map(|(m, (e, s))| (m, e, s))
-            .collect();
+        let monthly_history = stats::calculate_monthly_history(&app.transactions);
 
         terminal.draw(|f| {
             ui::draw_ui(
