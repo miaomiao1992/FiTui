@@ -23,15 +23,7 @@ pub fn draw_ui(
         Mode::Stats => {
             stats::draw_stats_view(
                 f,
-                snapshot.earned,
-                snapshot.spent,
-                snapshot.balance,
-                &snapshot.per_tag,
-                &snapshot.monthly_history,
-                snapshot.tx_count,
-                snapshot.largest.clone(),
-                snapshot.smallest.clone(),
-                &snapshot.top_tags,
+                snapshot,
                 &theme,
                 &app.currency,
             )
