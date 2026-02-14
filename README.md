@@ -2,7 +2,7 @@
 
 [![Built With Ratatui](https://ratatui.rs/built-with-ratatui/badge.svg)](https://ratatui.rs/)
 
-A lightweight terminal-based personal finance tracker built in Rust. Record transactions, track spending, and view financial insights—all from your terminal.
+A lightweight terminal-based personal finance tracker built in Rust. Record transactions, track spending, and view financial insights, all from your terminal.
 
 **Version:** 0.1.4
 
