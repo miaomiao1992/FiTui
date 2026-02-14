@@ -9,31 +9,59 @@ use crate::{
     models::{Transaction, TransactionType},
     stats,
     theme::Theme,
+    stats::StatsSnapshot,
 };
 
 pub fn draw_ui(
     f: &mut Frame,
-    transactions: &[Transaction],
-    earned: f64,
-    spent: f64,
-    balance: f64,
-    per_tag: &std::collections::HashMap<crate::models::Tag, f64>,
-    monthly_history: &[(String, f64, f64)],
-    tx_count: usize,
-    largest: Option<Transaction>,
-    smallest: Option<Transaction>,
-    top_tags: &[(crate::models::Tag, f64)],
     app: &App,
+    snapshot: &StatsSnapshot,
 ) {
     let theme = Theme::default();
-    
+
     match app.mode {
-        Mode::Stats => stats::draw_stats_view(f, earned, spent, balance, per_tag, monthly_history, tx_count, largest, smallest, top_tags, &theme, &app.currency),
+        Mode::Stats => {
+            stats::draw_stats_view(
+                f,
+                snapshot.earned,
+                snapshot.spent,
+                snapshot.balance,
+                &snapshot.per_tag,
+                &snapshot.monthly_history,
+                snapshot.tx_count,
+                snapshot.largest.clone(),
+                snapshot.smallest.clone(),
+                &snapshot.top_tags,
+                &theme,
+                &app.currency,
+            )
+        }
+
         Mode::Adding => {
-            draw_main_view(f, transactions, earned, spent, balance, app, &theme);
+            draw_main_view(
+                f,
+                &app.transactions,
+                snapshot.earned,
+                snapshot.spent,
+                snapshot.balance,
+                app,
+                &theme,
+            );
+
             draw_transaction_form(f, app, &theme);
         }
-        _ => draw_main_view(f, transactions, earned, spent, balance, app, &theme),
+
+        _ => {
+            draw_main_view(
+                f,
+                &app.transactions,
+                snapshot.earned,
+                snapshot.spent,
+                snapshot.balance,
+                app,
+                &theme,
+            );
+        }
     }
 }
 
@@ -156,7 +184,7 @@ fn draw_transactions_list(
     let mut state = create_list_state(app.selected);
     
     let list = List::new(items)
-        .block(theme.block("📊 Transactions"))
+        .block(theme.block(" Transactions "))
         .highlight_style(theme.highlight_style())
         .highlight_symbol("▶ ");
 

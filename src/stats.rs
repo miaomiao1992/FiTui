@@ -10,6 +10,50 @@ use crate::{
     models::{Tag, Transaction, TransactionType},
     theme::Theme,
 };
+pub struct StatsSnapshot {
+    pub earned: f64,
+    pub spent: f64,
+    pub balance: f64,
+
+    pub per_tag: HashMap<Tag, f64>,
+    pub monthly_history: Vec<(String, f64, f64)>,
+
+    pub tx_count: usize,
+    pub largest: Option<Transaction>,
+    pub smallest: Option<Transaction>,
+    pub top_tags: Vec<(Tag, f64)>,
+}
+
+impl StatsSnapshot {
+    pub fn new(transactions: &[Transaction]) -> Self {
+        let earned = calculate_earned(transactions);
+        let spent = calculate_spent(transactions);
+        let balance = earned - spent;
+
+        let per_tag = calculate_spent_per_tag(transactions);
+        let monthly_history = calculate_monthly_history(transactions);
+
+        let tx_count = transactions.len();
+        let largest = get_largest_transaction(transactions);
+        let smallest = get_smallest_transaction(transactions);
+
+        let top_tags = get_top_tags(&per_tag);
+
+        Self {
+            earned,
+            spent,
+            balance,
+            per_tag,
+            monthly_history,
+            tx_count,
+            largest,
+            smallest,
+            top_tags,
+        }
+    }
+}
+
+
 
 // ============================================================================
 // Stats calculation functions

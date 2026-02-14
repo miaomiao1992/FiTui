@@ -42,37 +42,10 @@ fn main() -> io::Result<()> {
     let mut app = App::new(&conn);
 
     loop {
-        let earned = stats::calculate_earned(&app.transactions);
-        let spent = stats::calculate_spent(&app.transactions);
-        let balance = earned - spent;
-
-        let per_tag = stats::calculate_spent_per_tag(&app.transactions);
-
-        let tx_count = app.transactions.len();
-
-        let largest = stats::get_largest_transaction(&app.transactions);
-
-        let smallest = stats::get_smallest_transaction(&app.transactions);
-
-        let top_tags = stats::get_top_tags(&per_tag);
-
-        let monthly_history = stats::calculate_monthly_history(&app.transactions);
+        let snapshot = stats::StatsSnapshot::new(&app.transactions);
 
         terminal.draw(|f| {
-            ui::draw_ui(
-                f,
-                &app.transactions,
-                earned,
-                spent,
-                balance,
-                &per_tag,
-                &monthly_history,
-                tx_count,
-                largest.clone(),
-                smallest.clone(),
-                &top_tags,
-                &app,
-            );
+            ui::draw_ui(f, &app, &snapshot);
         })?;
 
         if event::poll(std::time::Duration::from_millis(200))? {
